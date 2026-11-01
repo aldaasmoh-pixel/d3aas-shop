@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D3aas shop</title>
+<style>
+body{font-family:Arial;background:#f4f6f4;color:#17251f;margin:0}
+header{background:#17251f;color:white;padding:25px;text-align:center}
+main{padding:18px;max-width:700px;margin:auto}
+.card{background:white;padding:16px;border-radius:14px;margin:12px 0}
+button{background:#17251f;color:white;border:0;padding:12px;border-radius:9px;margin:5px}
+input,textarea{width:95%;padding:12px;margin:7px 0;border:1px solid #ccc;border-radius:8px}
+.product{border:1px solid #ddd;padding:12px;border-radius:12px;margin:12px 0}
+.price{font-weight:bold;font-size:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>D3aas shop</h1>
+<p>Dein Shop. Deine Auswahl.</p>
+<button onclick="show('shop')">Shop</button>
+<button onclick="show('cart')">Warenkorb 🛒</button>
+<button onclick="show('admin')">Mein Bereich</button>
+</header>
+<main>
+<section id="shop">
+<h2>Unsere Produkte</h2>
+<div id="products"></div>
+</section>
+
+<section id="cart" hidden>
+<h2>Mein Warenkorb</h2>
+<div id="cartitems"></div>
+<h3 id="total">Gesamt: 0 €</h3>
+<button onclick="order()">Testbestellung erstellen</button>
+</section>
+
+<section id="admin" hidden>
+<div class="card">
+<h2>Produkt hinzufügen</h2>
+<input id="name" placeholder="Produktname">
+<input id="price" type="number" placeholder="Preis in Euro">
+<input id="photo" placeholder="Bild-URL (optional)">
+<textarea id="description" placeholder="Beschreibung"></textarea>
+<button onclick="add()">Produkt speichern</button>
+</div>
+<div class="card">
+<h2>Meine Produkte</h2>
+<div id="manage"></div>
+</div>
+<div class="card">
+<h2>Meine Bestellungen</h2>
+<div id="orders"></div>
+</div>
+</section>
+</main>
+
+<script>
+let products=JSON.parse(localStorage.getItem('products')||'[]');
+let cart=JSON.parse(localStorage.getItem('cart')||'[]');
+let orders=JSON.parse(localStorage.getItem('orders')||'[]');
+
+function save(){
+localStorage.setItem('products',JSON.stringify(products));
+localStorage.setItem('cart',JSON.stringify(cart));
+localStorage.setItem('orders',JSON.stringify(orders));
+}
+
+function show(page){
+['shop','cart','admin'].forEach(x=>{
+document.getElementById(x).hidden=x!==page;
+});
+render();
+}
+
+function add(){
+let n=document.getElementById('name').value.trim();
+let p=Number(document.getElementById('price').value);
+let d=document.getElementById('description').value;
+let photo=document.getElementById('photo').value;
+if(!n||p<=0){alert('Bitte Name und Preis eingeben');return;}
+products.push({id:Date.now(),name:n,price:p,description:d,photo:photo});
+save();
+document.getElementById('name').value='';
+document.getElementById('price').value='';
+document.getElementById('description').value='';
+document.getElementById('photo').value='';
+render();
+alert('Produkt gespeichert!');
+}
+
+function removeProduct(id){
+products=products.filter(x=>x.id!==id);
+save();render();
+}
+
+function addCart(id){
+cart.push(id);save();render();
+alert('Zum Warenkorb hinzugefügt!');
+}
+
+function order(){
+let items=cart.map(id=>products.find(p=>p.id===id)).filter(Boolean);
+if(!items.length)return;
+orders.push({id:Date.now(),items:items,status:'Neue Testbestellung'});
+cart=[];save();render();
+alert('Testbestellung erstellt!');
+}
+
+function render(){
+document.getElementById('products').innerHTML=
+products.map(p=>`
+<div class="product">
+${p.photo?`<img src="${p.photo}" style="width:100%;max-height:180px;object-fit:cover">`:''}
+<h3>${escapeText(p.name)}</h3>
+<p>${escapeText(p.description||'')}</p>
+<p class="price">${p.price.toFixed(2)} €</p>
+<button onclick="addCart(${p.id})">In den Warenkorb</button>
+</div>`).join('')||'<p>Noch keine Produkte vorhanden.</p>';
+
+let items=cart.map(id=>products.find(p=>p.id===id)).filter(Boolean);
+document.getElementById('cartitems').innerHTML=
+items.map(p=>`<p>${escapeText(p.name)} – ${p.price.toFixed(2)} €</p>`).join('')||'Warenkorb ist leer';
+document.getElementById('total').innerText=
+'Gesamt: '+items.reduce((s,p)=>s+p.price,0).toFixed(2)+' €';
+
+document.getElementById('manage').innerHTML=
+products.map(p=>`<p>${escapeText(p.name)} – ${p.price} €
+<button onclick="removeProduct(${p.id})">Löschen</button></p>`).join('')||'Keine Produkte';
+
+document.getElementById('orders').innerHTML=
+orders.map(o=>`<p>Bestellung: ${o.items.map(p=>escapeText(p.name)).join(', ')} – ${o.status}</p>`).join('')||'Noch keine Bestellungen';
+}
+
+function escapeText(s){
+return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+render();
+</script>
+</body>
+</html>
